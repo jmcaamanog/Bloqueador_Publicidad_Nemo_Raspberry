@@ -17,6 +17,9 @@
 | **Arquitectura de Bloqueo** | 🛡️ **[Ver Guía Arquitectura V2](./doc_info/pihole_arquitectura_bloqueo_V2_2026.md)** | Documento técnico detallado sobre la defensa en 3 capas. |
 | **Reglas Regex Maestras** | 📝 **[Ver 211 Reglas (.conf)](./doc_info/pihole_ads_clickbait_native_2026.conf)** | Configuración de patrones Regex anti Native Ads y DSP. |
 | **Historial de Versiones** | 📜 **[Ver CHANGELOG.md](./CHANGELOG.md)** | Registro detallado de versiones y mejoras. |
+| **Cómo Contribuir** | 🛠️ **[Ver CONTRIBUTING.md](./CONTRIBUTING.md)** | Guía de colaboración, nuevas ideas y Pull Requests. |
+| **Código de Conducta** | 🤝 **[Ver CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)** | El manual del buen rollo y convivencia comunitaria. |
+| **Seguridad y Reportes** | 🛡️ **[Ver SECURITY.md](./SECURITY.md)** | Política de reporte responsable de vulnerabilidades. |
 
 ---
 
