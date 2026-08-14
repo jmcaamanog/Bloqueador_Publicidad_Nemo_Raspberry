@@ -1,4 +1,4 @@
-# 🍓 Pi-hole v6 + Unbound Master DNS (Raspberry Pi Zero)
+# 🐶 Bloqueador_Publicidad_Nemo_Raspberry 🍓
 
 | 🏗️ Perfil & Ubicación | 📈 Repositorio & Enlaces |
 | :--- | :--- |
