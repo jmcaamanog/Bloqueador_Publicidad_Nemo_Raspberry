@@ -1,0 +1,14 @@
+[Unit]
+Description=Nemo OLED Display and Hardware Button Service
+After=network.target pihole-FTL.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/nemo
+ExecStart=/usr/bin/python3 /opt/nemo/scripts/display/nemo_oled_service.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

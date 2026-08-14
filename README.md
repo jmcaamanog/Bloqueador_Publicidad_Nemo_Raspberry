@@ -44,6 +44,8 @@
 | **Log2Ram Protection** | 💾 | Redirección de logs del sistema (`/var/log`) a un disco virtual en memoria RAM, multiplicando la vida útil de la tarjeta microSD. |
 | **Tailscale Mesh VPN** | 🌐 | Permite utilizar la Pi-hole como servidor DNS seguro desde cualquier parte del mundo en smartphones y portátiles conectados a la red Tailscale. |
 | **Mantenimiento Autónomo** | ⚙️ | Tarea programada semanal (`cron.weekly`) para actualización y saneamiento desatendido de la gravedad de dominios. |
+| **Pantalla OLED 1.3" & Botones** | 🖥️ | Interfaz física para visualizar estadísticas en tiempo real (IP, % bloqueo, temperatura), con botón de navegación y botón de bypass 5m / apagado seguro. |
+| **Bot de Alertas Telegram** | 🤖 | Notificaciones programadas con el resumen diario del estado de la red y alertas ante anomalías de tráfico en dispositivos IoT. |
 
 ---
 
@@ -58,10 +60,18 @@ Bloqueador_Publicidad_Nemo_Raspberry/
 │   ├── pihole_ads_clickbait_native_2026.conf  # Las 211 reglas Regex organizadas por categorías
 │   ├── pihole_ads_clickbait_native_2026.md    # Manual técnico de las reglas Regex
 │   └── pihole_arquitectura_bloqueo_V2_2026.md # Guía de Arquitectura de Defensa en 3 Capas
-├── scripts/                              # Scripts de utilidad y mantenimiento
+├── hardware/                             # Esquemas de conexionado físico y pinout
+│   └── PINOUT_ESQUEMA.md                 # Guía de pines para OLED 1.3", 2 Botones y 2 LEDs
+├── scripts/                              # Scripts de utilidad, visualización y mantenimiento
 │   ├── check_system_status.py            # Diagnóstico rápido de servicios y resolución DNS
 │   ├── inject_gravity_rules.py           # Inyección directa de listas y reglas en gravity.db
-│   └── format_sd_card.bat                # Utilidad para formatear tarjetas microSD a FAT32
+│   ├── format_sd_card.bat                # Utilidad para formatear tarjetas microSD a FAT32
+│   ├── display/                          # Driver de pantalla OLED y gestión de gestos GPIO
+│   │   └── nemo_oled_service.py          # Servicio de pantalla OLED 1.3" + Botones + LEDs
+│   └── telegram/                         # Bot de alertas e informes diarios
+│       └── nemo_telegram_bot.py          # Notificador automático a Telegram
+├── systemd/                              # Servicios systemd para inicio automático
+│   └── nemo-display.service              # Servicio de arranque para pantalla OLED y GPIO
 ├── CHANGELOG.md                          # Historial de versiones y cambios del proyecto
 ├── LICENSE                               # Licencia de código abierto MIT
 └── README.md                             # Documentación principal del repositorio

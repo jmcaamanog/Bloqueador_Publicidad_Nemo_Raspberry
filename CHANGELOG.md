@@ -6,6 +6,16 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ---
 
+## [2.1.0] - 2026-08-14
+### ✨ Suite Maker de Hardware y Alertas
+* **Soporte de Pantalla OLED 1.3" (SH1106/SSD1306)**: Driver en Python con 4 vistas interactivas (Dashboard principal, Clientes activos, Gráfico histórico e Info del sistema).
+* **Control Físico por Botones Multifunción**:
+  * Botón 1 (GPIO 17): Navegación entre pantallas del OLED y modo reposo (*sleep*).
+  * Botón 2 (GPIO 27): Modo Bypass de 5 minutos, reinicio de DNS y apagado seguro (*safe poweroff*).
+* **Indicadores LED de Estado**: LED Verde (Escudo activo/Heartbeat) y LED Rojo (Modo Bypass/Alerta).
+* **Bot Notificador de Telegram**: Informes diarios automáticos de rendimiento del bloqueo y alertas de anomalías.
+* **Documentación de Hardware y Pinout**: Guía completa de cableado físico para diseño e impresión de carcasa 3D.
+
 ## [2.0.0] - 2026-08-14
 ### ✨ Añadido
 * **Despliegue Maestro Automatizado V2**: Instalación desatendida de **Pi-hole v6.7** sobre **Raspbian Bookworm (32-bit Lite)** en Raspberry Pi Zero 1.
