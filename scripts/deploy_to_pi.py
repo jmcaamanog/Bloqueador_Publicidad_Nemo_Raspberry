@@ -18,64 +18,79 @@ PI_IP = os.getenv("PI_IP", "192.168.0.23")
 PI_USER = os.getenv("PI_USER", "jose")
 PI_PASS = os.getenv("PI_PASS", "josejosejose1")
 
-print(f"🚀 Conectando a la Raspberry Pi Zero ({PI_IP})...")
+def get_ssh_client():
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    for attempt in range(5):
+        try:
+            ssh.connect(PI_IP, username=PI_USER, password=PI_PASS, timeout=20)
+            return ssh
+        except Exception as e:
+            print(f"Reintentando conexión ({attempt+1}/5): {e}")
+            time.sleep(3)
+    return None
 
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-try:
-    ssh.connect(PI_IP, username=PI_USER, password=PI_PASS, timeout=15)
-    print("✅ Conexión SSH establecida con éxito.")
-except Exception as e:
-    print(f"❌ Error de conexión: {e}")
-    sys.exit(1)
-
-def run(cmd, desc=""):
+def run_command(cmd, desc=""):
     if desc:
         print(f"\n---> {desc}")
-    stdin, stdout, stderr = ssh.exec_command(f"echo {PI_PASS} | sudo -S {cmd}")
-    out = stdout.read().decode('utf-8', errors='ignore').strip()
-    if out:
-        print(out)
-    err = stderr.read().decode('utf-8', errors='ignore').strip()
-    if err and "password for jose" not in err:
-        print("ERR:", err[:300])
+    ssh = get_ssh_client()
+    if not ssh:
+        print(f"❌ No se pudo conectar a {PI_IP}")
+        return False
+    try:
+        stdin, stdout, stderr = ssh.exec_command(f"echo {PI_PASS} | sudo -S {cmd}", timeout=300)
+        out = stdout.read().decode('utf-8', errors='ignore').strip()
+        if out:
+            print(out)
+        err = stderr.read().decode('utf-8', errors='ignore').strip()
+        if err and "password for jose" not in err:
+            print("ERR:", err[:300])
+        ssh.close()
+        return True
+    except Exception as e:
+        print(f"Error ejecutando '{cmd}': {e}")
+        ssh.close()
+        return False
 
-# 1. Habilitar I2C para la pantalla OLED
-run("raspi-config nonint do_i2c 0", "Habilitando módulo I2C del Kernel...")
+print(f"🚀 Iniciando despliegue en Raspberry Pi Zero ({PI_IP})...")
+
+# 1. Habilitar I2C
+run_command("raspi-config nonint do_i2c 0", "Habilitando módulo I2C del Kernel...")
 
 # 2. Instalar dependencias del sistema
-run("apt-get update && apt-get install -y i2c-tools python3-pil python3-rpi.gpio python3-pip git", "Instalando paquetes del sistema...")
+run_command("apt-get update && apt-get install -y i2c-tools python3-pil python3-rpi.gpio python3-pip git", "Instalando paquetes del sistema...")
 
 # 3. Instalar librerías de hardware en Python (WS2812B y OLED)
-run("pip3 install rpi_ws281x luma.oled --break-system-packages", "Instalando librerías Python (rpi_ws281x, luma.oled)...")
+run_command("pip3 install rpi_ws281x luma.oled --break-system-packages", "Instalando librerías Python (rpi_ws281x, luma.oled)...")
 
-# 4. Crear directorio /opt/nemo y clonar/sincronizar el repositorio
-run("mkdir -p /opt/nemo && chown -R jose:jose /opt/nemo", "Preparando directorio /opt/nemo...")
+# 4. Crear directorios y copiar scripts
+run_command("mkdir -p /opt/nemo/scripts/display /opt/nemo/scripts/telegram && chown -R jose:jose /opt/nemo", "Preparando directorio /opt/nemo...")
 
-# Subir scripts locales por SFTP
-sftp = ssh.open_sftp()
-local_display_script = os.path.join(os.path.dirname(__file__), "display", "nemo_oled_service.py")
-if os.path.exists(local_display_script):
-    run("mkdir -p /opt/nemo/scripts/display", "Creando rutas remotas...")
-    sftp.put(local_display_script, "/opt/nemo/scripts/display/nemo_oled_service.py")
-    print("✅ Script nemo_oled_service.py transferido a /opt/nemo.")
+ssh = get_ssh_client()
+if ssh:
+    sftp = ssh.open_sftp()
+    
+    local_display = os.path.join(os.path.dirname(__file__), "display", "nemo_oled_service.py")
+    if os.path.exists(local_display):
+        sftp.put(local_display, "/opt/nemo/scripts/display/nemo_oled_service.py")
+        print("✅ nemo_oled_service.py copiado a /opt/nemo.")
 
-local_telegram_script = os.path.join(os.path.dirname(__file__), "telegram", "nemo_telegram_bot.py")
-if os.path.exists(local_telegram_script):
-    run("mkdir -p /opt/nemo/scripts/telegram", "Creando rutas remotas...")
-    sftp.put(local_telegram_script, "/opt/nemo/scripts/telegram/nemo_telegram_bot.py")
-    print("✅ Script nemo_telegram_bot.py transferido a /opt/nemo.")
+    local_telegram = os.path.join(os.path.dirname(__file__), "telegram", "nemo_telegram_bot.py")
+    if os.path.exists(local_telegram):
+        sftp.put(local_telegram, "/opt/nemo/scripts/telegram/nemo_telegram_bot.py")
+        print("✅ nemo_telegram_bot.py copiado a /opt/nemo.")
 
-local_service = os.path.join(os.path.dirname(__file__), "..", "systemd", "nemo-display.service")
-if os.path.exists(local_service):
-    sftp.put(local_service, "/tmp/nemo-display.service")
-    run("cp /tmp/nemo-display.service /etc/systemd/system/nemo-display.service && systemctl daemon-reload && systemctl enable nemo-display.service", "Instalando servicio systemd...")
-    print("✅ Servicio nemo-display.service registrado en systemd.")
+    local_service = os.path.join(os.path.dirname(__file__), "..", "systemd", "nemo-display.service")
+    if os.path.exists(local_service):
+        sftp.put(local_service, "/tmp/nemo-display.service")
+        print("✅ nemo-display.service subido.")
 
-sftp.close()
+    sftp.close()
+    ssh.close()
 
-# 5. Comprobar bus I2C
-run("i2cdetect -y 1", "Escaneando dispositivos I2C...")
+run_command("cp /tmp/nemo-display.service /etc/systemd/system/nemo-display.service && systemctl daemon-reload && systemctl enable nemo-display.service", "Habilitando servicio systemd...")
 
-ssh.close()
-print("\n🎉 ¡ACTUALIZACIÓN Y DESPLIEGUE EN LA RASPBERRY PI ZERO COMPLETADOS CON ÉXITO!")
+# 5. Comprobar I2C
+run_command("i2cdetect -y 1", "Escaneando dispositivos I2C en el bus...")
+
+print("\n🎉 ¡DESPLIEGUE COMPLETO Y SISTEMA PREPARADO!")
