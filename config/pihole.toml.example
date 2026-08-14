@@ -1,0 +1,10 @@
+# Configuración de referencia de Pi-hole v6
+[dns]
+port = 53
+upstreams = [ "1.1.1.1", "1.0.0.1", "127.0.0.1#5335" ]
+listeningMode = "ALL"
+cacheSize = 10000
+blockingEnabled = true
+
+[webserver]
+port = "80"

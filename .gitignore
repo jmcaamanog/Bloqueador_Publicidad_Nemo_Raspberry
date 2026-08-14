@@ -1,0 +1,11 @@
+# Notas y registros privados
+NOTAS/
+*.log
+.env
+__pycache__/
+*.pyc
+
+# Archivos temporales de despliegue
+tmp/
+scratch/
+*.tmp
