@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Servicio Maestro de Pantalla OLED 1.3" (SH1106/SSD1306) + 2 Botones + 2 LEDs
+Servicio Maestro de Pantalla OLED 1.3" (SH1106) + 2 Botones + LED Direccionable WS2812B (NeoPixel)
 Para: Bloqueador_Publicidad_Nemo_Raspberry
 Autor: Jose Manuel Caamaño González
 """
@@ -17,41 +17,63 @@ from datetime import datetime
 try:
     from PIL import Image, ImageDraw, ImageFont
     from luma.core.interface.serial import i2c
-    from luma.oled.device import sh1106, ssd1306
+    from luma.oled.device import sh1106
     import RPi.GPIO as GPIO
+    from rpi_ws281x import PixelStrip, Color
+    HAS_HARDWARE = True
 except ImportError:
-    print("Aviso: Librerías luma.oled / RPi.GPIO no disponibles en local. Modo Simulación.")
+    HAS_HARDWARE = False
+    print("Aviso: Librerías luma.oled / rpi_ws281x no disponibles en local. Modo Simulación.")
 
 # --- Configuración de Pines GPIO ---
 PIN_BTN_NAV = 17   # Botón 1: Navegación / Sleep (Pin 11)
 PIN_BTN_CTRL = 27  # Botón 2: Bypass / Safe Poweroff (Pin 13)
-PIN_LED_GREEN = 22 # LED Verde: Escudo Activo (Pin 15)
-PIN_LED_RED = 23   # LED Rojo: Bypass / Alerta (Pin 16)
+
+# --- Configuración LED WS2812B (NeoPixel) ---
+LED_COUNT = 1          # 1 LED individual (o tira en la carcasa)
+LED_PIN = 18           # GPIO 18 / Pin 12 (PWM por hardware)
+LED_FREQ_HZ = 800000   # Frecuencia de señal LED (800khz)
+LED_DMA = 10           # Canal DMA para generar señal
+LED_BRIGHTNESS = 64    # Brillo (0 a 255)
+LED_INVERT = False     # False para no invertir señal
+
+# Colores predefinidos WS2812B (G, R, B)
+COLOR_OFF = (0, 0, 0)
+COLOR_GREEN = (0, 255, 0)      # Escudo activo
+COLOR_ORANGE = (255, 120, 0)   # Modo Bypass
+COLOR_BLUE = (0, 150, 255)     # Actividad DNS
+COLOR_RED = (255, 0, 0)        # Alerta / Error
+COLOR_PURPLE = (180, 0, 255)   # Mantenimiento
 
 class NemoDisplayManager:
     def __init__(self):
         self.current_screen = 0
-        self.total_screens = 4
         self.screen_on = True
         self.bypass_until = 0
         self.width = 128
         self.height = 64
         
-        # Inicializar GPIO
-        try:
-            GPIO.setmode(GPIO.BCM)
-            GPIO.setwarnings(False)
-            GPIO.setup(PIN_BTN_NAV, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-            GPIO.setup(PIN_BTN_CTRL, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-            GPIO.setup(PIN_LED_GREEN, GPIO.OUT)
-            GPIO.setup(PIN_LED_RED, GPIO.OUT)
-            
-            # Inicializar OLED (SH1106 1.3" por defecto)
-            serial = i2c(port=1, address=0x3C)
-            self.device = sh1106(serial, width=128, height=64)
-        except Exception as e:
+        if HAS_HARDWARE:
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                GPIO.setup(PIN_BTN_NAV, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                GPIO.setup(PIN_BTN_CTRL, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+                
+                # Inicializar OLED 1.3"
+                serial = i2c(port=1, address=0x3C)
+                self.device = sh1106(serial, width=128, height=64)
+                
+                # Inicializar WS2812B
+                self.strip = PixelStrip(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
+                self.strip.begin()
+            except Exception as e:
+                self.device = None
+                self.strip = None
+                print(f"Error hardware: {e}")
+        else:
             self.device = None
-            print(f"Modo emulado sin hardware GPIO: {e}")
+            self.strip = None
 
         # Fuentes
         try:
@@ -63,28 +85,27 @@ class NemoDisplayManager:
             self.font_body = ImageFont.load_default()
             self.font_large = ImageFont.load_default()
 
+    def set_ws2812b_color(self, r, g, b):
+        if self.strip:
+            try:
+                self.strip.setPixelColor(0, Color(r, g, b))
+                self.strip.show()
+            except Exception:
+                pass
+
     def get_system_stats(self):
-        # IP Local
         try:
             ip = subprocess.check_output("hostname -I", shell=True).decode('utf-8').split()[0]
         except Exception:
             ip = "127.0.0.1"
 
-        # Temperatura CPU
         try:
             with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
                 temp = float(f.read().strip()) / 1000.0
         except Exception:
             temp = 0.0
 
-        # Stats de Pi-hole vía API local
-        stats = {
-            "queries": 0,
-            "blocked": 0,
-            "percent": 0.0,
-            "clients": 0,
-            "status": "enabled"
-        }
+        stats = {"queries": 0, "blocked": 0, "percent": 0.0, "clients": 0}
         try:
             req = urllib.request.urlopen("http://127.0.0.1/api/stats/summary", timeout=2)
             data = json.loads(req.read().decode('utf-8'))
@@ -92,7 +113,6 @@ class NemoDisplayManager:
             stats["blocked"] = data.get("queries", {}).get("blocked", 0)
             stats["percent"] = data.get("queries", {}).get("percent_blocked", 0.0)
             stats["clients"] = data.get("clients", {}).get("active", 0)
-            stats["status"] = data.get("status", "enabled")
         except Exception:
             pass
 
@@ -113,26 +133,22 @@ class NemoDisplayManager:
         draw.text((20, 35), f"{remaining // 60:02d}:{remaining % 60:02d} min", font=self.font_large, fill=255)
         draw.text((5, 52), "Pulsa B para reactivar", font=self.font_body, fill=255)
 
-    def update_leds(self, is_bypass):
-        try:
-            if is_bypass:
-                GPIO.output(PIN_LED_GREEN, GPIO.LOW)
-                GPIO.output(PIN_LED_RED, GPIO.HIGH)
-            else:
-                GPIO.output(PIN_LED_GREEN, GPIO.HIGH)
-                GPIO.output(PIN_LED_RED, GPIO.LOW)
-        except Exception:
-            pass
-
     def run(self):
-        print("Iniciando servicio Nemo Display Manager...")
+        print("Iniciando servicio Nemo Display Manager (WS2812B Edition)...")
         while True:
             ip, temp, stats = self.get_system_stats()
             now = time.time()
             is_bypass = now < self.bypass_until
             
-            self.update_leds(is_bypass)
+            # Control de Color WS2812B
+            if is_bypass:
+                self.set_ws2812b_color(*COLOR_ORANGE)
+            elif temp > 65.0:
+                self.set_ws2812b_color(*COLOR_RED)
+            else:
+                self.set_ws2812b_color(*COLOR_GREEN)
             
+            # Dibujado OLED
             if self.device and self.screen_on:
                 image = Image.new("1", (self.width, self.height))
                 draw = ImageDraw.Draw(image)

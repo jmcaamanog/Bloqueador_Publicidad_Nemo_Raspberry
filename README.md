@@ -61,7 +61,7 @@ Bloqueador_Publicidad_Nemo_Raspberry/
 │   ├── pihole_ads_clickbait_native_2026.md    # Manual técnico de las reglas Regex
 │   └── pihole_arquitectura_bloqueo_V2_2026.md # Guía de Arquitectura de Defensa en 3 Capas
 ├── hardware/                             # Esquemas de conexionado físico y pinout
-│   └── PINOUT_ESQUEMA.md                 # Guía de pines para OLED 1.3", 2 Botones y 2 LEDs
+│   └── PINOUT_ESQUEMA.md                 # Guía de pines para OLED 1.3", 2 Botones y LED RGB WS2812B (NeoPixel)
 ├── scripts/                              # Scripts de utilidad, visualización y mantenimiento
 │   ├── check_system_status.py            # Diagnóstico rápido de servicios y resolución DNS
 │   ├── inject_gravity_rules.py           # Inyección directa de listas y reglas en gravity.db
